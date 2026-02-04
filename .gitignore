@@ -3,3 +3,6 @@ work/
 output/
 submit/
 submit.zip
+
+# Large data file (exceeds GitHub 100MB limit)
+dump.xml.bz2
