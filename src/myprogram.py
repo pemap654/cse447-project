@@ -2,6 +2,7 @@
 import os
 import string
 import random
+import bz2
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 
 
@@ -10,19 +11,69 @@ class MyModel:
     This is a starter model to get you started. Feel free to modify this file.
     """
 
+    # Paths to check for the training dump (e.g. Wikipedia dump.xml.bz2)
+    TRAIN_DUMP_PATHS = [
+        'data/dump.xml.bz2',
+        'dump.xml.bz2',
+        '/job/data/dump.xml.bz2',
+    ]
+
     @classmethod
-    def load_training_data(cls):
-        # your code here
-        # this particular model doesn't train
-        return []
+    def load_training_data(cls, max_texts=None):
+        """
+        Load training data from a bz2-compressed XML dump (e.g. Wikipedia).
+        Looks for dump.xml.bz2 in data/, current dir, or /job/data (Docker).
+        Returns a list of text strings (one per article/page).
+        If max_texts is set, only the first that many texts are returned (for debugging).
+        """
+        dump_path = None
+        for path in cls.TRAIN_DUMP_PATHS:
+            if os.path.isfile(path):
+                dump_path = path
+                break
+        if dump_path is None:
+            return []
+
+        texts = []
+        with bz2.open(dump_path, 'rt', encoding='utf-8', errors='replace') as f:
+            in_text = False
+            current = []
+            for line in f:
+                if not in_text:
+                    if '<text' in line:
+                        in_text = True
+                        start = line.find('>') + 1
+                        if '</text>' in line[start:]:
+                            end = line.find('</text>', start)
+                            texts.append(line[start:end])
+                            if max_texts is not None and len(texts) >= max_texts:
+                                return texts
+                            in_text = False
+                        else:
+                            current = [line[start:].rstrip('\n')]
+                else:
+                    if '</text>' in line:
+                        end = line.find('</text>')
+                        current.append(line[:end])
+                        texts.append('\n'.join(current))
+                        if max_texts is not None and len(texts) >= max_texts:
+                            return texts
+                        current = []
+                        in_text = False
+                    else:
+                        current.append(line.rstrip('\n'))
+        return texts
 
     @classmethod
     def load_test_data(cls, fname):
-        # your code here
+        """
+        Load test data: one string per line (UTF-8). Each string is the context
+        for which the model must predict the next character (3 guesses).
+        """
         data = []
-        with open(fname) as f:
+        with open(fname, encoding='utf-8') as f:
             for line in f:
-                inp = line[:-1]  # the last character is a newline
+                inp = line.rstrip('\n')  # strip newline only, preserve rest
                 data.append(inp)
         return data
 
