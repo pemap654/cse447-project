@@ -4,5 +4,6 @@ output/
 submit/
 submit.zip
 
-# Large data file (exceeds GitHub 100MB limit)
+# Large data files (exceeds GitHub 100MB limit)
+data/
 dump.xml.bz2

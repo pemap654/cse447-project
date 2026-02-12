@@ -199,9 +199,11 @@ class MyModel:
 
     # Paths to check for the training dump (e.g. Wikipedia dump.xml.bz2)
     TRAIN_DUMP_PATHS = [
+        'data/enwikiquote-2026-02-01-p1p303038.xml.bz2',
         'data/dump.xml.bz2',
         'dump.xml.bz2',
         '/job/data/dump.xml.bz2',
+        '/job/data/enwikiquote-2026-02-01-p1p303038.xml.bz2',
     ]
 
     def __init__(self, vocab_size=None, char2idx=None, idx2char=None, use_transformer=True):
@@ -356,7 +358,11 @@ class MyModel:
         total_tokens = 0
         
         with torch.no_grad():
-            for x, y in dataloader:
+            for batch_idx, (x, y) in enumerate(dataloader):
+                # Limit to 20 batches for faster validation
+                if batch_idx >= 20:
+                    break
+                    
                 x, y = x.to(self.device), y.to(self.device)
                 
                 if self.use_transformer:
@@ -442,7 +448,7 @@ class MyModel:
         optimizer = optim.AdamW(self.model.parameters(), lr=0.001, weight_decay=0.01)  # AdamW for better regularization
         
         # Learning rate scheduler (from Neural Networks lecture)
-        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=2, verbose=True)
+        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=2)
         
         # Training loop
         num_epochs = 10
@@ -460,6 +466,10 @@ class MyModel:
             num_batches = 0
             
             for batch_idx, (x, y) in enumerate(train_loader):
+                # Limit to 20 batches per epoch for faster training
+                if batch_idx >= 20:
+                    break
+                    
                 x, y = x.to(self.device), y.to(self.device)
                 
                 optimizer.zero_grad()
@@ -483,7 +493,7 @@ class MyModel:
                 
                 if batch_idx % 100 == 0:
                     current_lr = optimizer.param_groups[0]['lr']
-                    print(f'Epoch {epoch+1}/{num_epochs}, Batch {batch_idx}/{len(train_loader)}, '
+                    print(f'Epoch {epoch+1}/{num_epochs}, Batch {batch_idx}/20, '
                           f'Loss: {loss.item():.4f}, LR: {current_lr:.6f}')
             
             avg_train_loss = total_loss / max(num_batches, 1)
